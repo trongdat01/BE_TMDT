@@ -43,7 +43,7 @@ const categorySchema = new mongoose.Schema(
 );
 
 // Tạo index cho các trường quan trọng
-categorySchema.index({ slug: 1 }, { unique: true });
+// Không cần index cho slug vì đã được định nghĩa trong schema với unique: true
 categorySchema.index({ parentId: 1 });
 categorySchema.index({ isActive: 1 });
 categorySchema.index({ displayOrder: 1 });
