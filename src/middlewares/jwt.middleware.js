@@ -2,7 +2,8 @@ import jwt from "jsonwebtoken";
 import createError from "../utils/createError.js";
 import { JWT_SECRET } from "../configs/enviroments.js";
 
-const jwtMiddleware = (req, res, next) => {
+// Middleware xác thực token
+export const verifyToken = (req, res, next) => {
 	// Token có thể được gửi qua cookie hoặc header
 	const token = req.cookies?.accessToken || req.headers.authorization?.split(" ")[1];
 
@@ -19,4 +20,26 @@ const jwtMiddleware = (req, res, next) => {
 	}
 };
 
-export default jwtMiddleware;
+// Middleware kiểm tra quyền admin
+export const verifyAdmin = (req, res, next) => {
+	verifyToken(req, res, () => {
+		if (req.user.role === "admin") {
+			next();
+		} else {
+			return next(createError(403, "Bạn không có quyền thực hiện hành động này"));
+		}
+	});
+};
+
+// Middleware kiểm tra quyền staff hoặc admin
+export const verifyStaff = (req, res, next) => {
+	verifyToken(req, res, () => {
+		if (req.user.role === "admin" || req.user.role === "staff") {
+			next();
+		} else {
+			return next(createError(403, "Bạn không có quyền thực hiện hành động này"));
+		}
+	});
+};
+
+export default { verifyToken, verifyAdmin, verifyStaff };
