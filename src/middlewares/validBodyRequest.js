@@ -1,11 +1,15 @@
 const validBodyRequest = (schema) => (req, res, next) => {
-	try {
-		const data = schema.parse(req.body);
-		req.body = data;
-		next();
-	} catch (error) {
-		res.status(400).json({ message: error.message });
+	const { error, value } = schema.validate(req.body);
+
+	if (error) {
+		return res.status(400).json({
+			success: false,
+			message: error.details[0].message
+		});
 	}
+
+	req.body = value;
+	next();
 };
 
 export default validBodyRequest;

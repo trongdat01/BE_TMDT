@@ -1,11 +1,14 @@
 import { Router } from "express";
+import authRoutes from './authRoutes.js';
 
 const routes = Router();
 
-// routes.use("/products", hanldeProduct...)
-// routes.use("/products", hanldeProduct...)
-// routes.use("/products", hanldeProduct...)
-// routes.use("/products", hanldeProduct...)
-// routes.use("/products", hanldeProduct...)
+// Route xác thực
+routes.use("/auth", authRoutes);
+
+// Các routes khác sẽ được thêm sau
+// routes.use("/products", productRoutes);
+// routes.use("/categories", categoryRoutes);
+// routes.use("/orders", orderRoutes);
 
 export default routes;

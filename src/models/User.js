@@ -80,8 +80,7 @@ const userSchema = new mongoose.Schema(
 );
 
 // Tạo index cho các trường
-userSchema.index({ email: 1 }, { unique: true });
-userSchema.index({ username: 1 }, { unique: true });
+// Email và username đã được tự động đánh index do khai báo unique: true
 userSchema.index({ phoneNumber: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ isActive: 1 });
