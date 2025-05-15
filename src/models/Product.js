@@ -106,8 +106,7 @@ const productSchema = new mongoose.Schema(
 );
 
 // Tạo index cho các trường
-productSchema.index({ slug: 1 }, { unique: true });
-productSchema.index({ sku: 1 }, { unique: true, sparse: true });
+// Không cần đánh index lại cho slug và sku vì đã định nghĩa unique: true trong schema
 productSchema.index({ brandId: 1 });
 productSchema.index({ name: 'text', description: 'text' }, { name: 'productSearchIndex' });
 productSchema.index({ isActive: 1 });
