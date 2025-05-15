@@ -62,8 +62,9 @@ const router = express.Router();
  *     responses:
  *       201:
  *         description: Đăng ký thành công
- *       400:
- *         description: Dữ liệu không hợp lệ hoặc đã tồn tại
+ *       400: *         description: Dữ liệu không hợp lệ hoặc đã tồn tại
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.post('/register', validBodyRequest(registerSchema), authController.register);
 
@@ -91,10 +92,11 @@ router.post('/register', validBodyRequest(registerSchema), authController.regist
  *                 format: password
  *                 description: Mật khẩu
  *     responses:
- *       200:
- *         description: Đăng nhập thành công
+ *       200: *         description: Đăng nhập thành công
  *       401:
  *         description: Thông tin đăng nhập không đúng
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.post('/login', validBodyRequest(loginSchema), authController.login);
 
@@ -117,10 +119,11 @@ router.post('/login', validBodyRequest(loginSchema), authController.login);
  *                 type: string
  *                 description: Refresh token
  *     responses:
- *       200:
- *         description: Access token mới đã được tạo
+ *       200: *         description: Access token mới đã được tạo
  *       401:
  *         description: Refresh token không hợp lệ hoặc đã hết hạn
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.post('/refresh-token', authController.refreshToken);
 
@@ -133,12 +136,13 @@ router.post('/refresh-token', authController.refreshToken);
  *     security:
  *       - bearerAuth: []
  *     responses:
- *       200:
- *         description: Thông tin người dùng
+ *       200: *         description: Thông tin người dùng
  *       401:
  *         description: Không được xác thực
  *       404:
  *         description: Không tìm thấy người dùng
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.get('/me', verifyToken, authController.getCurrentUser);
 
@@ -174,10 +178,11 @@ router.get('/me', verifyToken, authController.getCurrentUser);
  *                 format: password
  *                 description: Xác nhận mật khẩu mới
  *     responses:
- *       200:
- *         description: Đổi mật khẩu thành công
+ *       200: *         description: Đổi mật khẩu thành công
  *       401:
  *         description: Mật khẩu hiện tại không đúng
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.post(
     '/change-password',
@@ -206,8 +211,9 @@ router.post(
  *                 format: email
  *                 description: Email đã đăng ký
  *     responses:
- *       200:
- *         description: Link đặt lại mật khẩu đã được gửi (nếu email tồn tại)
+ *       200: *         description: Link đặt lại mật khẩu đã được gửi (nếu email tồn tại)
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.post('/forgot-password', validBodyRequest(forgotPasswordSchema), authController.forgotPassword);
 
@@ -240,10 +246,11 @@ router.post('/forgot-password', validBodyRequest(forgotPasswordSchema), authCont
  *                 format: password
  *                 description: Xác nhận mật khẩu mới
  *     responses:
- *       200:
- *         description: Đặt lại mật khẩu thành công
+ *       200: *         description: Đặt lại mật khẩu thành công
  *       401:
  *         description: Token không hợp lệ hoặc đã hết hạn
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.post('/reset-password', validBodyRequest(resetPasswordSchema), authController.resetPassword);
 

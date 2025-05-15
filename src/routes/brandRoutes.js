@@ -15,9 +15,10 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/brands:
+ * /brands:
  *   get:
  *     summary: Lấy danh sách tất cả thương hiệu
+ *     description: Lấy danh sách tất cả thương hiệu với các tùy chọn lọc
  *     tags: [Brands]
  *     parameters:
  *       - in: query
@@ -48,14 +49,17 @@ const router = express.Router();
  *     responses:
  *       200:
  *         description: Danh sách thương hiệu
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.get('/', brandController.getAllBrands);
 
 /**
  * @swagger
- * /api/brands/{id}:
+ * /brands/{id}:
  *   get:
  *     summary: Lấy thông tin một thương hiệu theo ID
+ *     description: Lấy thông tin chi tiết của một thương hiệu dựa trên ID
  *     tags: [Brands]
  *     parameters:
  *       - in: path
@@ -69,14 +73,17 @@ router.get('/', brandController.getAllBrands);
  *         description: Thông tin thương hiệu
  *       404:
  *         description: Không tìm thấy thương hiệu
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.get('/:id', brandController.getBrandById);
 
 /**
  * @swagger
- * /api/brands/slug/{slug}:
+ * /brands/slug/{slug}:
  *   get:
  *     summary: Lấy thông tin một thương hiệu theo slug
+ *     description: Lấy thông tin chi tiết của một thương hiệu dựa trên slug
  *     tags: [Brands]
  *     parameters:
  *       - in: path
@@ -90,14 +97,17 @@ router.get('/:id', brandController.getBrandById);
  *         description: Thông tin thương hiệu
  *       404:
  *         description: Không tìm thấy thương hiệu
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.get('/slug/:slug', brandController.getBrandBySlug);
 
 /**
  * @swagger
- * /api/brands:
+ * /brands:
  *   post:
  *     summary: Tạo thương hiệu mới
+ *     description: Tạo một thương hiệu sản phẩm mới
  *     tags: [Brands]
  *     security:
  *       - bearerAuth: []
@@ -128,7 +138,11 @@ router.get('/slug/:slug', brandController.getBrandBySlug);
  *       400:
  *         description: Dữ liệu không hợp lệ
  *       401:
- *         description: Không được phép
+ *         description: Không được phép - Yêu cầu xác thực
+ *       403:
+ *         description: Không có quyền - Yêu cầu quyền Admin
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.post(
     '/',
@@ -140,9 +154,10 @@ router.post(
 
 /**
  * @swagger
- * /api/brands/{id}:
+ * /brands/{id}:
  *   put:
  *     summary: Cập nhật thương hiệu
+ *     description: Cập nhật thông tin một thương hiệu theo ID
  *     tags: [Brands]
  *     security:
  *       - bearerAuth: []
@@ -162,21 +177,29 @@ router.post(
  *             properties:
  *               name:
  *                 type: string
+ *                 description: Tên thương hiệu
  *               logoUrl:
  *                 type: string
+ *                 description: URL logo của thương hiệu 
  *               description:
  *                 type: string
+ *                 description: Mô tả về thương hiệu
  *               isDomestic:
  *                 type: boolean
+ *                 description: Đánh dấu thương hiệu trong nước hay quốc tế
  *     responses:
  *       200:
  *         description: Cập nhật thương hiệu thành công
  *       400:
  *         description: Dữ liệu không hợp lệ
  *       401:
- *         description: Không được phép
+ *         description: Không được phép - Yêu cầu xác thực
+ *       403:
+ *         description: Không có quyền - Yêu cầu quyền Admin
  *       404:
  *         description: Không tìm thấy thương hiệu
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.put(
     '/:id',
@@ -188,9 +211,10 @@ router.put(
 
 /**
  * @swagger
- * /api/brands/soft-delete/{id}:
+ * /brands/soft-delete/{id}:
  *   delete:
  *     summary: Vô hiệu hóa thương hiệu (soft delete)
+ *     description: Vô hiệu hóa thương hiệu bằng cách đặt isActive thành false
  *     tags: [Brands]
  *     security:
  *       - bearerAuth: []
@@ -205,9 +229,13 @@ router.put(
  *       200:
  *         description: Vô hiệu hóa thương hiệu thành công
  *       401:
- *         description: Không được phép
+ *         description: Không được phép - Yêu cầu xác thực
+ *       403:
+ *         description: Không có quyền - Yêu cầu quyền Admin
  *       404:
  *         description: Không tìm thấy thương hiệu
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.delete(
     '/soft-delete/:id',
@@ -218,9 +246,10 @@ router.delete(
 
 /**
  * @swagger
- * /api/brands/restore/{id}:
+ * /brands/restore/{id}:
  *   patch:
  *     summary: Khôi phục thương hiệu đã vô hiệu hóa
+ *     description: Khôi phục thương hiệu đã bị xóa mềm bằng cách đặt isActive thành true
  *     tags: [Brands]
  *     security:
  *       - bearerAuth: []
@@ -235,9 +264,13 @@ router.delete(
  *       200:
  *         description: Khôi phục thương hiệu thành công
  *       401:
- *         description: Không được phép
+ *         description: Không được phép - Yêu cầu xác thực
+ *       403:
+ *         description: Không có quyền - Yêu cầu quyền Admin
  *       404:
  *         description: Không tìm thấy thương hiệu
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.patch(
     '/restore/:id',
@@ -248,9 +281,10 @@ router.patch(
 
 /**
  * @swagger
- * /api/brands/{id}:
+ * /brands/{id}:
  *   delete:
- *     summary: Xóa thương hiệu
+ *     summary: Xóa thương hiệu vĩnh viễn
+ *     description: Xóa vĩnh viễn thương hiệu theo ID (chỉ khả thi nếu không có sản phẩm nào sử dụng thương hiệu này)
  *     tags: [Brands]
  *     security:
  *       - bearerAuth: []
@@ -267,9 +301,13 @@ router.patch(
  *       400:
  *         description: Không thể xóa thương hiệu có chứa sản phẩm
  *       401:
- *         description: Không được phép
+ *         description: Không được phép - Yêu cầu xác thực
+ *       403:
+ *         description: Không có quyền - Yêu cầu quyền Admin
  *       404:
  *         description: Không tìm thấy thương hiệu
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.delete(
     '/:id',
