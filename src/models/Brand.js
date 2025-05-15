@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 import slugMiddleware from "../middlewares/slug.middleware.js";
+// Import model Product để sử dụng trong các phương thức tĩnh
+import Product from "./Product.js";
 
 /**
  * Brand model - Thương hiệu sản phẩm
@@ -30,15 +32,20 @@ const brandSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
       description: "Đánh dấu thương hiệu nội địa"
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+      description: "Trạng thái hoạt động của thương hiệu"
     }
   },
   { timestamps: true }
 );
 
 // Tạo index cho các trường quan trọng
-brandSchema.index({ slug: 1 }, { unique: true });
-brandSchema.index({ name: 1 }, { unique: true });
+// Không cần index lại cho slug và name vì đã có 'unique: true' trong định nghĩa schema
 brandSchema.index({ isDomestic: 1 });
+brandSchema.index({ isActive: 1 });
 
 // Áp dụng middleware slug tự động
 brandSchema.plugin(slugMiddleware('name', 'slug', false));
@@ -53,9 +60,12 @@ brandSchema.virtual('productCount').get(function () {
 });
 
 // Phương thức tĩnh để đếm số lượng sản phẩm cho mỗi thương hiệu
-brandSchema.statics.getWithProductCount = async function () {
-  const brands = await this.find({ isActive: true });
-  const Product = mongoose.model('Product');
+brandSchema.statics.getWithProductCount = async function (filter = {}) {
+  // Mặc định chỉ lấy các thương hiệu đang active
+  if (filter.isActive === undefined) {
+    filter.isActive = true;
+  }
+  const brands = await this.find(filter);
 
   for (const brand of brands) {
     brand._productCount = await Product.countDocuments({
@@ -68,8 +78,8 @@ brandSchema.statics.getWithProductCount = async function () {
 };
 
 // Phương thức tĩnh để lấy các thương hiệu phổ biến nhất
-brandSchema.statics.getPopularBrands = async function (limit = 10) {
-  const Product = mongoose.model('Product');
+brandSchema.statics.getPopularBrands = async function (limit = 10, includeInactive = false) {
+  const brandFilter = includeInactive ? {} : { isActive: true };
 
   // Aggregate để đếm số lượng sản phẩm cho mỗi thương hiệu
   const brandStats = await Product.aggregate([
@@ -81,7 +91,7 @@ brandSchema.statics.getPopularBrands = async function (limit = 10) {
 
   // Lấy thông tin chi tiết của các thương hiệu
   const brandIds = brandStats.map(item => item._id);
-  const brands = await this.find({ _id: { $in: brandIds } });
+  const brands = await this.find({ _id: { $in: brandIds }, ...brandFilter });
 
   // Sắp xếp kết quả theo thứ tự phổ biến
   const sortedBrands = brandIds.map(id => {
@@ -97,9 +107,11 @@ brandSchema.statics.getPopularBrands = async function (limit = 10) {
 };
 
 // Phương thức để lấy tất cả thương hiệu phân loại theo nguồn gốc (nội địa/quốc tế)
-brandSchema.statics.getByOrigin = async function () {
-  const domestic = await this.find({ isDomestic: true }).sort({ name: 1 });
-  const international = await this.find({ isDomestic: false }).sort({ name: 1 });
+brandSchema.statics.getByOrigin = async function (includeInactive = false) {
+  const filter = includeInactive ? {} : { isActive: true };
+
+  const domestic = await this.find({ ...filter, isDomestic: true }).sort({ name: 1 });
+  const international = await this.find({ ...filter, isDomestic: false }).sort({ name: 1 });
 
   return { domestic, international };
 };

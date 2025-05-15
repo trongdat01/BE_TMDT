@@ -1,6 +1,7 @@
 import { Router } from "express";
 import authRoutes from './authRoutes.js';
 import categoryRoutes from './categoryRoutes.js';
+import brandRoutes from './brandRoutes.js';
 
 const routes = Router();
 
@@ -9,6 +10,9 @@ routes.use("/auth", authRoutes);
 
 // Route quản lý danh mục
 routes.use("/categories", categoryRoutes);
+
+// Route quản lý thương hiệu
+routes.use("/brands", brandRoutes);
 
 // Các routes khác sẽ được thêm sau
 // routes.use("/products", productRoutes);
