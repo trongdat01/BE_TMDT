@@ -29,10 +29,11 @@ const router = express.Router();
  *         name: parentId
  *         schema:
  *           type: string
- *         description: Lọc theo danh mục cha
- *     responses:
+ *         description: Lọc theo danh mục cha *     responses:
  *       200:
  *         description: Danh sách danh mục
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.get('/', categoryController.getAllCategories);
 
@@ -49,11 +50,12 @@ router.get('/', categoryController.getAllCategories);
  *         schema:
  *           type: string
  *         description: ID của danh mục
- *     responses:
- *       200:
+ *     responses: *       200:
  *         description: Thông tin danh mục
  *       404:
  *         description: Không tìm thấy danh mục
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.get('/:id', categoryController.getCategoryById);
 
@@ -92,13 +94,14 @@ router.get('/:id', categoryController.getCategoryById);
  *               displayOrder:
  *                 type: integer
  *                 description: Thứ tự hiển thị
- *     responses:
- *       201:
+ *     responses: *       201:
  *         description: Tạo danh mục thành công
  *       400:
  *         description: Dữ liệu không hợp lệ
  *       401:
  *         description: Không được phép
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.post(
     '/',
@@ -142,8 +145,7 @@ router.post(
  *                 type: boolean
  *               displayOrder:
  *                 type: integer
- *     responses:
- *       200:
+ *     responses: *       200:
  *         description: Cập nhật danh mục thành công
  *       400:
  *         description: Dữ liệu không hợp lệ
@@ -151,6 +153,8 @@ router.post(
  *         description: Không được phép
  *       404:
  *         description: Không tìm thấy danh mục
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.put(
     '/:id',
@@ -180,13 +184,14 @@ router.put(
  *         schema:
  *           type: boolean
  *         description: Xác định có vô hiệu hóa tất cả danh mục con không (mặc định là true)
- *     responses:
- *       200:
+ *     responses: *       200:
  *         description: Vô hiệu hóa danh mục thành công
  *       401:
  *         description: Không được phép
  *       404:
  *         description: Không tìm thấy danh mục
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.delete(
     '/soft-delete/:id',
@@ -215,8 +220,7 @@ router.delete(
  *         schema:
  *           type: boolean
  *         description: Xác định có khôi phục tất cả danh mục con không (mặc định là true)
- *     responses:
- *       200:
+ *     responses: *       200:
  *         description: Khôi phục danh mục thành công
  *       400:
  *         description: Không thể khôi phục khi danh mục cha đang bị vô hiệu hóa
@@ -224,6 +228,8 @@ router.delete(
  *         description: Không được phép
  *       404:
  *         description: Không tìm thấy danh mục
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.patch(
     '/restore/:id',
@@ -247,8 +253,7 @@ router.patch(
  *         schema:
  *           type: string
  *         description: ID của danh mục
- *     responses:
- *       200:
+ *     responses: *       200:
  *         description: Xóa danh mục thành công
  *       400:
  *         description: Không thể xóa danh mục có chứa danh mục con
@@ -256,6 +261,8 @@ router.patch(
  *         description: Không được phép
  *       404:
  *         description: Không tìm thấy danh mục
+ *       500:
+ *         description: Lỗi máy chủ
  */
 router.delete(
     '/:id',
