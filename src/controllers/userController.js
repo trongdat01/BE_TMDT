@@ -44,4 +44,5 @@ export const deleteUser = handleAsync(async (req, res, next) => {
   if (!user) return next(createError(404, 'Không tìm thấy người dùng'));
 
   res.json({ message: 'Xóa người dùng thành công' });
+  
 });

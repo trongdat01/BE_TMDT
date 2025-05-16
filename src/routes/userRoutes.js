@@ -157,4 +157,5 @@ router.put('/:id', verifyToken, handleAsync(userController.updateUser));
  */
 router.delete('/:id', verifyToken, handleAsync(userController.deleteUser));
 
+
 export default router;

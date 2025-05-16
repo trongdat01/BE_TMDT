@@ -18,6 +18,7 @@ routes.use("/brands", brandRoutes);
 // Route người dùng
 routes.use("/users", userRoutes);
 
+
 // Các routes khác sẽ được thêm sau
 // routes.use("/products", productRoutes);
 // routes.use("/orders", orderRoutes);

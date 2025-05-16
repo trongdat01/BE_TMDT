@@ -76,4 +76,5 @@ export const updateUserSchema = Joi.object({
     isActive: Joi.boolean(),
 
     role: Joi.string().valid('customer', 'admin', 'staff')
+    
 });
