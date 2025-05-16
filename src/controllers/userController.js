@@ -2,47 +2,74 @@ import User from '../models/User.js';
 import handleAsync from '../utils/handleAsync.js';
 import createError from '../utils/createError.js';
 
-// Lấy danh sách tất cả người dùng
+// GET /users (admin)
 export const getUsers = handleAsync(async (req, res) => {
-  const users = await User.find().select('-password');
+  const users = await User.find();
   res.json(users);
 });
 
-// Lấy thông tin người dùng theo ID
+// GET /users/:id (admin)
 export const getUserById = handleAsync(async (req, res, next) => {
-  const user = await User.findById(req.params.id).select('-password');
-  if (!user) return next(createError(404, 'Không tìm thấy người dùng'));
+  const user = await User.findById(req.params.id);
+  if (!user) return next(createError(404, 'User not found'));
   res.json(user);
 });
 
-// Tạo mới một người dùng
-export const createUser = handleAsync(async (req, res, next) => {
-  const { name, email, password, role } = req.body;
-
-  const existing = await User.findOne({ email });
-  if (existing) return next(createError(400, 'Email đã tồn tại'));
-
-  const user = new User({ name, email, password, role });
-  await user.save();
-
-  res.status(201).json({ message: 'Tạo người dùng thành công', user: { ...user._doc, password: undefined } });
-});
-
-// Cập nhật thông tin người dùng
+// PUT /users/:id
 export const updateUser = handleAsync(async (req, res, next) => {
-  const updates = req.body;
-  const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true }).select('-password');
-
-  if (!user) return next(createError(404, 'Không tìm thấy người dùng'));
-
-  res.json({ message: 'Cập nhật người dùng thành công', user });
+  const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  if (!user) return next(createError(404, 'User not found'));
+  res.json(user);
 });
 
-// Xóa người dùng
-export const deleteUser = handleAsync(async (req, res, next) => {
-  const user = await User.findByIdAndDelete(req.params.id);
-  if (!user) return next(createError(404, 'Không tìm thấy người dùng'));
+// PATCH /users/:id/status (admin)
+export const updateUserStatus = handleAsync(async (req, res, next) => {
+  const user = await User.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
+  if (!user) return next(createError(404, 'User not found'));
+  res.json({ message: 'Status updated', user });
+});
 
-  res.json({ message: 'Xóa người dùng thành công' });
-  
+// GET /users/me/addresses
+export const getMyAddresses = handleAsync(async (req, res) => {
+  const user = await User.findById(req.user.id);
+  res.json(user.addresses);
+});
+
+// POST /users/me/addresses
+export const addAddress = handleAsync(async (req, res) => {
+  const user = await User.findById(req.user.id);
+  user.addresses.push(req.body);
+  await user.save();
+  res.status(201).json(user.addresses);
+});
+
+// PUT /users/me/addresses/:addressId
+export const updateAddress = handleAsync(async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+  const address = user.addresses.id(req.params.addressId);
+  if (!address) return next(createError(404, 'Address not found'));
+  Object.assign(address, req.body);
+  await user.save();
+  res.json(user.addresses);
+});
+
+// DELETE /users/me/addresses/:addressId
+export const deleteAddress = handleAsync(async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+  const address = user.addresses.id(req.params.addressId);
+  if (!address) return next(createError(404, 'Address not found'));
+  address.remove();
+  await user.save();
+  res.json({ message: 'Address deleted' });
+});
+
+// PATCH /users/me/addresses/:addressId/default
+export const setDefaultAddress = handleAsync(async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+  user.addresses.forEach(addr => addr.isDefault = false);
+  const address = user.addresses.id(req.params.addressId);
+  if (!address) return next(createError(404, 'Address not found'));
+  address.isDefault = true;
+  await user.save();
+  res.json({ message: 'Default address set' });
 });

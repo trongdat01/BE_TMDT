@@ -65,16 +65,98 @@ export const createUserSchema = Joi.object({
     isActive: Joi.boolean().default(true) // người dùng mặc định là đang hoạt động
 });
 
-// Schema để cập nhật thông tin người dùng (update)
+// Schema cập nhật thông tin người dùng
 export const updateUserSchema = Joi.object({
-    fullName: Joi.string().min(2).max(50).trim(),
-
-    phoneNumber: Joi.string()
+    fullName: Joi.string()
+        .min(2)
+        .max(50)
+        .required()
+        .trim()
+        .messages({
+            'string.empty': 'Họ tên không được để trống',
+            'string.min': 'Họ tên phải có ít nhất {#limit} ký tự',
+            'string.max': 'Họ tên không được quá {#limit} ký tự',
+            'any.required': 'Họ tên là bắt buộc'
+        }),
+    phone: Joi.string()
         .pattern(/^(0|\+84)[0-9]{9,10}$/)
-        .allow(''),
+        .required()
+        .messages({
+            'string.empty': 'Số điện thoại không được để trống',
+            'string.pattern.base': 'Số điện thoại không hợp lệ (phải bắt đầu bằng 0 hoặc +84 và có 9-10 số)',
+            'any.required': 'Số điện thoại là bắt buộc'
+        }),
+    province: Joi.string()
+        .required()
+        .messages({
+            'string.empty': 'Tỉnh/Thành phố không được để trống',
+            'any.required': 'Tỉnh/Thành phố là bắt buộc'
+        }),
+    district: Joi.string()
+        .required()
+        .messages({
+            'string.empty': 'Quận/Huyện không được để trống',
+            'any.required': 'Quận/Huyện là bắt buộc'
+        }),
+    ward: Joi.string()
+        .required()
+        .messages({
+            'string.empty': 'Phường/Xã không được để trống',
+            'any.required': 'Phường/Xã là bắt buộc'
+        }),
+    street: Joi.string()
+        .required()
+        .messages({
+            'string.empty': 'Địa chỉ chi tiết không được để trống',
+            'any.required': 'Địa chỉ chi tiết là bắt buộc'
+        }),
+    isDefault: Joi.boolean().optional()
+});
 
-    isActive: Joi.boolean(),
-
-    role: Joi.string().valid('customer', 'admin', 'staff')
-    
+// Schema địa chỉ người dùng
+export const addressSchema = Joi.object({
+    receiverName: Joi.string()
+        .min(2)
+        .max(50)
+        .required()
+        .trim()
+        .messages({
+            'string.empty': 'Tên người nhận không được để trống',
+            'string.min': 'Tên người nhận phải có ít nhất {#limit} ký tự',
+            'string.max': 'Tên người nhận không được quá {#limit} ký tự',
+            'any.required': 'Tên người nhận là bắt buộc'
+        }),
+    phone: Joi.string()
+        .pattern(/^(0|\+84)[0-9]{9,10}$/)
+        .required()
+        .messages({
+            'string.empty': 'Số điện thoại không được để trống',
+            'string.pattern.base': 'Số điện thoại không hợp lệ (phải bắt đầu bằng 0 hoặc +84 và có 9-10 số)',
+            'any.required': 'Số điện thoại là bắt buộc'
+        }),
+    province: Joi.string()
+        .required()
+        .messages({
+            'string.empty': 'Tỉnh/Thành phố không được để trống',
+            'any.required': 'Tỉnh/Thành phố là bắt buộc'
+        }),
+    district: Joi.string()
+        .required()
+        .messages({
+            'string.empty': 'Quận/Huyện không được để trống',
+            'any.required': 'Quận/Huyện là bắt buộc'
+        }),
+    ward: Joi.string()
+        .required()
+        .messages({
+            'string.empty': 'Phường/Xã không được để trống',
+            'any.required': 'Phường/Xã là bắt buộc'
+        }),
+    street: Joi.string()
+        .required()
+        .messages({
+            'string.empty': 'Địa chỉ chi tiết không được để trống',
+            'any.required': 'Địa chỉ chi tiết là bắt buộc'
+        }),
+    isDefault: Joi.boolean().optional()
 });
