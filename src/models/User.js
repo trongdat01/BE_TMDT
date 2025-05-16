@@ -36,12 +36,15 @@ const userSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true
-    },
-    addresses: [
+    }, addresses: [
       {
         id: {
           type: String,
           default: () => new mongoose.Types.ObjectId().toString()
+        },
+        name: {
+          type: String,
+          trim: true
         },
         receiverName: {
           type: String,

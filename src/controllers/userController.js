@@ -2,6 +2,13 @@ import User from '../models/User.js';
 import handleAsync from '../utils/handleAsync.js';
 import createError from '../utils/createError.js';
 
+// GET /users/me
+export const getCurrentUser = handleAsync(async (req, res, next) => {
+  const user = await User.findById(req.user.id).select('-passwordHash');
+  if (!user) return next(createError(404, 'User not found'));
+  res.json(user);
+});
+
 // GET /users (admin)
 export const getUsers = handleAsync(async (req, res) => {
   const users = await User.find();
@@ -10,7 +17,7 @@ export const getUsers = handleAsync(async (req, res) => {
 
 // GET /users/:id (admin)
 export const getUserById = handleAsync(async (req, res, next) => {
-  const user = await User.findById(req.params.id);
+  const user = await User.findById(req.params.id).select('-passwordHash');
   if (!user) return next(createError(404, 'User not found'));
   res.json(user);
 });
@@ -56,11 +63,20 @@ export const updateAddress = handleAsync(async (req, res, next) => {
 // DELETE /users/me/addresses/:addressId
 export const deleteAddress = handleAsync(async (req, res, next) => {
   const user = await User.findById(req.user.id);
-  const address = user.addresses.id(req.params.addressId);
-  if (!address) return next(createError(404, 'Address not found'));
-  address.remove();
+  const addressIdToDelete = req.params.addressId;
+
+  // Kiểm tra xem địa chỉ tồn tại không
+  const addressIndex = user.addresses.findIndex(addr => addr.id === addressIdToDelete);
+  if (addressIndex === -1) return next(createError(404, 'Địa chỉ không tìm thấy'));
+
+  // Xóa địa chỉ khỏi mảng bằng phương thức pull (cách mới của Mongoose)
+  user.addresses.pull({ id: addressIdToDelete });
+
+  // Lưu thay đổi vào database
   await user.save();
-  res.json({ message: 'Address deleted' });
+
+  // Trả về kết quả thành công
+  res.json({ success: true, message: 'Đã xóa địa chỉ thành công' });
 });
 
 // PATCH /users/me/addresses/:addressId/default
