@@ -114,8 +114,43 @@ productSchema.index({ isFeatured: 1 });
 productSchema.index({ price: 1 });
 productSchema.index({ createdAt: -1 });
 
-// Áp dụng middleware slug tự động
-productSchema.plugin(slugMiddleware('name', 'slug', false));
+// Middleware kiểm tra trùng lặp slug và SKU trước khi lưu
+productSchema.pre('save', async function (next) {
+  try {
+    // Nếu là document mới hoặc slug bị thay đổi
+    if (this.isNew || this.isModified('slug')) {
+      // Kiểm tra xem slug đã tồn tại chưa
+      const existingProduct = await mongoose.model('Product').findOne({
+        slug: this.slug,
+        _id: { $ne: this._id } // Loại trừ chính document này
+      });
+
+      if (existingProduct) {
+        // Nếu slug đã tồn tại, thêm timestamp để tạo slug mới duy nhất
+        this.slug = `${this.slug}-${Date.now()}`;
+      }
+    }
+
+    // Kiểm tra SKU nếu có
+    if (this.sku && (this.isNew || this.isModified('sku'))) {
+      const existingProductWithSku = await mongoose.model('Product').findOne({
+        sku: this.sku,
+        _id: { $ne: this._id }
+      });
+
+      if (existingProductWithSku) {
+        return next(new Error('SKU đã tồn tại trong hệ thống'));
+      }
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Áp dụng middleware slug tự động - đặt thành true để đảm bảo tính duy nhất
+productSchema.plugin(slugMiddleware('name', 'slug', true));
 
 // Virtual field cho giá hiển thị (lấy giá khuyến mãi nếu có)
 productSchema.virtual('displayPrice').get(function () {
