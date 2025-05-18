@@ -8,6 +8,7 @@ import orderRoutes from './orderRoutes.js';
 import productVariantRoutes from './productVariantRoutes.js';
 import reviewRoutes from './reviewRoutes.js';
 import wishlistRoutes from './wishlistRoutes.js';
+import cartRoutes from './cartRoutes.js';
 
 const routes = Router();
 
@@ -37,5 +38,8 @@ routes.use('/reviews', reviewRoutes);
 
 // Route quản lý danh sách yêu thích
 routes.use('/wishlists', wishlistRoutes);
+
+// Route quản lý giỏ hàng
+routes.use('/cart', cartRoutes);
 
 export default routes;
