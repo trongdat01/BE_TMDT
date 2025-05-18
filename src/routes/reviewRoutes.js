@@ -1,5 +1,5 @@
 import express from 'express';
-import reviewController from '../controllers/reviewController.js';
+import reviewControllers from '../controllers/reviewControllers.js';
 import { verifyToken } from '../middlewares/jwt.middleware.js';
 import { checkRole } from '../middlewares/auth.middleware.js';
 
@@ -33,7 +33,7 @@ const router = express.Router();
  */
 router.get(
   '/products/:productId/reviews',
-  reviewController.getProductReviews
+  reviewControllers.getProductReviews
 );
 
 /**
@@ -88,7 +88,7 @@ router.get(
 router.post(
   '/products/:productId/reviews',
   verifyToken,
-  reviewController.createReview
+  reviewControllers.createReview
 );
 
 /**
@@ -141,7 +141,7 @@ router.post(
 router.put(
   '/reviews/:reviewId',
   verifyToken,
-  reviewController.updateReview
+  reviewControllers.updateReview
 );
 
 /**
@@ -170,7 +170,7 @@ router.put(
 router.delete(
   '/reviews/:reviewId',
   verifyToken,
-  reviewController.deleteReview
+  reviewControllers.deleteReview
 );
 
 /**
@@ -200,7 +200,7 @@ router.patch(
   '/reviews/:reviewId/approve',
   verifyToken,
   checkRole('admin', 'staff'),
-  reviewController.approveReview
+  reviewControllers.approveReview
 );
 
 export default router;
