@@ -6,6 +6,7 @@ import userRoutes from './userRoutes.js';
 import productRoutes from './productRoutes.js';
 import orderRoutes from './orderRoutes.js';
 import productVariantRoutes from './productVariantRoutes.js';
+import reviewRoutes from './reviewRoutes.js';
 
 const routes = Router();
 
@@ -29,5 +30,8 @@ routes.use("/orders", orderRoutes);
 
 // Route quản lý biến thể sản phẩm
 routes.use('/', productVariantRoutes);
+
+// Route quản lý đánh giá
+routes.use('/reviews', reviewRoutes);
 
 export default routes;
