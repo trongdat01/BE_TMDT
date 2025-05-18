@@ -58,7 +58,6 @@ const productVariantSchema = new mongoose.Schema(
 
 // Tạo index cho các trường quan trọng
 productVariantSchema.index({ productId: 1 });
-productVariantSchema.index({ sku: 1 }, { unique: true });
 productVariantSchema.index({ color: 1 });
 productVariantSchema.index({ size: 1 });
 productVariantSchema.index({ isActive: 1 });

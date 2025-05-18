@@ -39,94 +39,92 @@ const shippingAddressSchema = new mongoose.Schema(
   { _id: false }
 );
 
-const orderSchema = new mongoose.Schema(
-  {
-    orderNumber: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true
-    },
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User"
-    },
-    status: {
-      type: String,
-      enum: ["pending", "processing", "shipped", "delivered", "cancelled"],
-      default: "pending"
-    },
-    paymentStatus: {
-      type: String,
-      enum: ["pending", "paid", "failed", "refunded"],
-      default: "pending"
-    },
-    addressType: {
-      type: String,
-      enum: ["user_saved", "manual"],
-      required: true
-    },
-    addressId: {
-      type: String,
-      description: "ID của địa chỉ đã lưu trong users.addresses"
-    },
-    shippingAddress: {
-      type: shippingAddressSchema,
-      description: "Địa chỉ giao hàng được nhập trực tiếp"
-    },
-    subtotal: {
-      type: Number,
-      required: true,
-      min: 0
-    },
-    shippingCost: {
-      type: Number,
-      required: true,
-      default: 20000,
-      min: 0
-    },
-    shippingFeeWaived: {
-      type: Boolean,
-      default: false
-    },
-    taxAmount: {
-      type: Number,
-      required: true,
-      default: 0,
-      min: 0
-    },
-    discountAmount: {
-      type: Number,
-      default: 0,
-      min: 0
-    },
-    totalAmount: {
-      type: Number,
-      required: true,
-      min: 0
-    },
-    paymentMethod: {
-      type: String,
-      enum: ["cod", "bank_transfer", "momo", "zalopay", "vnpay"]
-    },
-    shippingMethod: {
-      type: String,
-      enum: ["standard", "express", "same_day"],
-      default: "standard"
-    },
-    trackingNumber: {
-      type: String,
-      trim: true
-    },
-    discountId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Discount"
-    },
-    notes: {
-      type: String,
-      trim: true
-    }
+const orderSchema = new mongoose.Schema({
+  orderNumber: {
+    type: String,
+    required: true,
+    trim: true
   },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User"
+  },
+  status: {
+    type: String,
+    enum: ["pending", "processing", "shipped", "delivered", "cancelled"],
+    default: "pending"
+  },
+  paymentStatus: {
+    type: String,
+    enum: ["pending", "paid", "failed", "refunded"],
+    default: "pending"
+  },
+  addressType: {
+    type: String,
+    enum: ["user_saved", "manual"],
+    required: true
+  },
+  addressId: {
+    type: String,
+    description: "ID của địa chỉ đã lưu trong users.addresses"
+  },
+  shippingAddress: {
+    type: shippingAddressSchema,
+    description: "Địa chỉ giao hàng được nhập trực tiếp"
+  },
+  subtotal: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  shippingCost: {
+    type: Number,
+    required: true,
+    default: 20000,
+    min: 0
+  },
+  shippingFeeWaived: {
+    type: Boolean,
+    default: false
+  },
+  taxAmount: {
+    type: Number,
+    required: true,
+    default: 0,
+    min: 0
+  },
+  discountAmount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  totalAmount: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  paymentMethod: {
+    type: String,
+    enum: ["cod", "bank_transfer", "momo", "zalopay", "vnpay"]
+  },
+  shippingMethod: {
+    type: String,
+    enum: ["standard", "express", "same_day"],
+    default: "standard"
+  },
+  trackingNumber: {
+    type: String,
+    trim: true
+  },
+  discountId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Discount"
+  },
+  notes: {
+    type: String,
+    trim: true
+  }
+},
   { timestamps: true }
 );
 
