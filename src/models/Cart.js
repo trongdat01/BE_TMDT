@@ -29,9 +29,9 @@ const cartSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-// Tạo index cho các trường quan trọng
-cartSchema.index({ userId: 1 });
-cartSchema.index({ sessionId: 1 });
+// Tạo index cho các trường quan trọng - Tạm thời comment lại để loại bỏ duplicate
+// cartSchema.index({ userId: 1 });
+// cartSchema.index({ sessionId: 1 });
 
 // Virtual field cho tổng tiền (subtotal + shippingCost)
 cartSchema.virtual('totalAmount').get(function () {
