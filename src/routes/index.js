@@ -5,6 +5,7 @@ import brandRoutes from './brandRoutes.js';
 import userRoutes from './userRoutes.js';
 import productRoutes from './productRoutes.js';
 import orderRoutes from './orderRoutes.js';
+import productVariantRoutes from './productVariantRoutes.js';
 
 const routes = Router();
 
@@ -25,5 +26,8 @@ routes.use("/products", productRoutes);
 
 // Route quản lý đơn hàng
 routes.use("/orders", orderRoutes);
+
+// Route quản lý biến thể sản phẩm
+routes.use('/', productVariantRoutes);
 
 export default routes;
