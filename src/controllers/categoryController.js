@@ -3,28 +3,58 @@ import handleAsync from '../utils/handleAsync.js';
 import createError from '../utils/createError.js';
 import mongoose from 'mongoose';
 
-// Lấy danh sách tất cả danh mục
-export const getAllCategories = handleAsync(async (req, res) => {
-    const { isActive, parentId } = req.query;
+// GET /categories - Lấy danh sách danh mục (có tìm kiếm, phân trang, lọc)
+export const getCategories = handleAsync(async (req, res, next) => {
+    const {
+        page = 1,
+        limit = 10,
+        search,
+        isActive,
+        parentId
+    } = req.query;
 
-    // Xây dựng filter query
     const filter = {};
 
+    // Lọc theo trạng thái
     if (isActive !== undefined) {
         filter.isActive = isActive === 'true';
     }
 
-    if (parentId !== undefined) {
-        filter.parentId = parentId === 'null' ? null : parentId;
+    // Lọc theo danh mục cha
+    if (parentId) {
+        filter.parentId = parentId;
     }
 
+    // Tìm kiếm theo tên
+    if (search) {
+        filter.name = { $regex: search, $options: 'i' };
+    }
+
+    // Kiểm tra nếu filter không hợp lệ (ví dụ: parentId không phải ObjectId)
+    if (parentId && !mongoose.Types.ObjectId.isValid(parentId)) {
+        return res.status(200).json({
+            success: true,
+            count: 0,
+            totalCount: 0,
+            currentPage: Number(page),
+            totalPages: 0,
+            data: []
+        });
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const totalCount = await Category.countDocuments(filter);
     const categories = await Category.find(filter)
-        .populate('parentId', 'name slug')
-        .sort({ displayOrder: 1, name: 1 });
+        .skip(skip)
+        .limit(Number(limit));
+    const totalPages = Math.ceil(totalCount / Number(limit));
 
     res.status(200).json({
         success: true,
         count: categories.length,
+        totalCount,
+        currentPage: Number(page),
+        totalPages,
         data: categories
     });
 });
@@ -79,17 +109,17 @@ export const createCategory = handleAsync(async (req, res, next) => {
     // Lưu vào database
     const savedCategory = await category.save();
 
-    res.status(201).json({
-        success: true,
+    req.data = {
         message: 'Tạo danh mục thành công',
         data: savedCategory
-    });
+    };
+    res.status(201);
+    return next();
 });
 
 // Cập nhật danh mục
 export const updateCategory = handleAsync(async (req, res, next) => {
     const { id } = req.params;
-    const { name, description, parentId, imageUrl, isActive, displayOrder } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
         return next(createError(400, 'ID danh mục không hợp lệ'));
@@ -102,38 +132,34 @@ export const updateCategory = handleAsync(async (req, res, next) => {
     }
 
     // Kiểm tra parentId có hợp lệ không
-    if (parentId) {
+    if (req.body.parentId) {
         // Ngăn chặn việc đặt chính nó làm danh mục cha
-        if (parentId === id) {
+        if (req.body.parentId === id) {
             return next(createError(400, 'Không thể đặt danh mục làm danh mục cha của chính nó'));
         }
 
-        if (!mongoose.Types.ObjectId.isValid(parentId)) {
+        if (!mongoose.Types.ObjectId.isValid(req.body.parentId)) {
             return next(createError(400, 'ID danh mục cha không hợp lệ'));
         }
 
-        const parentExists = await Category.findById(parentId);
+        const parentExists = await Category.findById(req.body.parentId);
         if (!parentExists) {
             return next(createError(404, 'Danh mục cha không tồn tại'));
         }
     }
 
     // Cập nhật thông tin danh mục
-    if (name) category.name = name;
-    if (description !== undefined) category.description = description;
-    if (parentId !== undefined) category.parentId = parentId || null;
-    if (imageUrl !== undefined) category.imageUrl = imageUrl;
-    if (isActive !== undefined) category.isActive = isActive;
-    if (displayOrder !== undefined) category.displayOrder = displayOrder;
+    Object.assign(category, req.body);
 
     // Lưu thay đổi
     const updatedCategory = await category.save();
 
-    res.status(200).json({
-        success: true,
+    req.data = {
         message: 'Cập nhật danh mục thành công',
         data: updatedCategory
-    });
+    };
+    res.status(200);
+    return next();
 });
 
 // Xóa danh mục
@@ -157,10 +183,11 @@ export const deleteCategory = handleAsync(async (req, res, next) => {
         return next(createError(404, 'Không tìm thấy danh mục'));
     }
 
-    res.status(200).json({
-        success: true,
+    req.data = {
         message: 'Xóa danh mục thành công'
-    });
+    };
+    res.status(200);
+    return next();
 });
 
 // Vô hiệu hóa danh mục (soft delete) và tất cả danh mục con của nó
@@ -213,11 +240,12 @@ export const softDeleteCategory = handleAsync(async (req, res, next) => {
     // Lấy lại danh mục sau khi cập nhật để trả về
     const updatedCategory = await Category.findById(id);
 
-    res.status(200).json({
-        success: true,
+    req.data = {
         message,
         data: updatedCategory
-    });
+    };
+    res.status(200);
+    return next();
 });
 
 // Khôi phục danh mục đã vô hiệu hóa và tùy chọn khôi phục các danh mục con
@@ -278,15 +306,16 @@ export const restoreCategory = handleAsync(async (req, res, next) => {
     // Lấy lại danh mục sau khi cập nhật để trả về
     const updatedCategory = await Category.findById(id);
 
-    res.status(200).json({
-        success: true,
+    req.data = {
         message,
         data: updatedCategory
-    });
+    };
+    res.status(200);
+    return next();
 });
 
 export default {
-    getAllCategories,
+    getCategories,
     getCategoryById,
     createCategory,
     updateCategory,
