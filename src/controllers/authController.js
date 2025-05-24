@@ -10,21 +10,128 @@ function generateToken({ payload, secret, options }) {
     return jwt.sign(payload, secret, options);
 }
 
-export const register = handleAsync(async (req, res, next) => {
-    const { username, email, password, fullName, phoneNumber } = req.body;
-
+const checkExistingUser = async (email, username) => {
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
-        return next(createError(400, 'Email đã được sử dụng'));
+        return { error: createError(400, 'Email đã được sử dụng') };
     }
 
     const existingUsername = await User.findOne({ username });
     if (existingUsername) {
-        return next(createError(400, 'Tên đăng nhập đã được sử dụng'));
+        return { error: createError(400, 'Tên đăng nhập đã được sử dụng') };
     }
 
+    return { success: true };
+};
+
+const hashPassword = async (password) => {
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    return bcrypt.hash(password, salt);
+};
+
+export const getAdminUsers = handleAsync(async (req, res, next) => {
+    const { role } = req.query;
+    const filter = {};
+    if (role === 'admin' || role === 'staff') {
+        filter.role = role;
+    } else {
+        filter.role = { $in: ['admin', 'staff'] };
+    }
+    const adminUsers = await User.find(filter).select('-passwordHash');
+    const firstAdmin = await User.findOne({ role: 'admin' }).sort({ _id: 1 }).select('_id');
+    const response = adminUsers.map(user => {
+        const userObj = user.toObject();
+        if (firstAdmin && user._id.toString() === firstAdmin._id.toString()) {
+            userObj.isSuperAdmin = true;
+        }
+        return userObj;
+    });
+
+    return res.success({
+        count: response.length,
+        data: response
+    });
+});
+
+export const createAdminUser = handleAsync(async (req, res, next) => {
+    const { username, email, password, fullName, phoneNumber, role } = req.body;
+
+    if (role !== 'admin' && role !== 'staff') {
+        return next(createError(400, 'Vai trò không hợp lệ, chỉ được phép tạo tài khoản Admin hoặc Staff'));
+    }
+
+    const checkResult = await checkExistingUser(email, username);
+    if (checkResult.error) {
+        return next(checkResult.error);
+    }
+
+    const hashedPassword = await hashPassword(password);
+    const newUser = new User({
+        username,
+        email,
+        passwordHash: hashedPassword,
+        fullName,
+        phoneNumber,
+        role,
+        isActive: true
+    });
+
+    await newUser.save();
+
+    return res.success({
+        user: {
+            id: newUser._id,
+            username: newUser.username,
+            email: newUser.email,
+            fullName: newUser.fullName,
+            role: newUser.role
+        }
+    }, `Tạo tài khoản ${role === 'admin' ? 'Admin' : 'Staff'} thành công`, 201);
+});
+
+export const deleteAdminUser = handleAsync(async (req, res, next) => {
+    const userId = req.params.id;
+    const adminId = req.user.id;
+
+    if (userId === adminId) {
+        return next(createError(400, 'Bạn không thể xóa tài khoản của chính mình'));
+    }
+
+    const userToDelete = await User.findById(userId);
+    if (!userToDelete) {
+        return next(createError(404, 'Không tìm thấy người dùng'));
+    }
+
+    if (userToDelete.role !== 'admin' && userToDelete.role !== 'staff') {
+        return next(createError(400, 'API này chỉ dùng để xóa tài khoản Admin hoặc Staff'));
+    }
+
+    if (userToDelete.role === 'admin') {
+        const adminCount = await User.countDocuments({ role: 'admin' });
+        if (adminCount <= 1) {
+            return next(createError(400, 'Không thể xóa Admin duy nhất trong hệ thống'));
+        }
+
+        const firstAdmin = await User.findOne({ role: 'admin' }).sort({ createdAt: 1 });
+        if (firstAdmin && firstAdmin._id.toString() !== adminId) {
+            return next(createError(403, 'Chỉ Super Admin mới có quyền xóa tài khoản Admin khác'));
+        }
+    }
+
+    await User.findByIdAndDelete(userId);
+
+    return res.success({}, `Đã xóa tài khoản ${userToDelete.role === 'admin' ? 'Admin' : 'Staff'} thành công`);
+});
+
+export const register = handleAsync(async (req, res, next) => {
+    const { username, email, password, fullName, phoneNumber } = req.body;
+
+    const checkResult = await checkExistingUser(email, username);
+    if (checkResult.error) {
+        return next(checkResult.error);
+    }
+
+    const hashedPassword = await hashPassword(password);
 
     const newUser = new User({
         username,
@@ -69,9 +176,7 @@ export const login = handleAsync(async (req, res, next) => {
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
         return next(createError(401, 'Tên đăng nhập hoặc mật khẩu không đúng'));
-    }
-
-    const accessToken = generateToken({
+    } const accessToken = generateToken({
         payload: { id: user._id, role: user.role },
         secret: JWT_SECRET,
         options: { expiresIn: '1d' }
@@ -83,9 +188,7 @@ export const login = handleAsync(async (req, res, next) => {
         options: { expiresIn: '7d' }
     });
 
-    res.status(200).json({
-        success: true,
-        message: 'Đăng nhập thành công',
+    return res.success({
         user: {
             id: user._id,
             username: user.username,
@@ -95,7 +198,7 @@ export const login = handleAsync(async (req, res, next) => {
         },
         accessToken,
         refreshToken
-    });
+    }, 'Đăng nhập thành công');
 });
 
 export const refreshToken = handleAsync(async (req, res, next) => {
@@ -108,9 +211,7 @@ export const refreshToken = handleAsync(async (req, res, next) => {
     try {
         const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
 
-        const user = await User.findById(decoded.id);
-
-        if (!user || !user.isActive) {
+        const user = await User.findById(decoded.id); if (!user || !user.isActive) {
             return next(createError(401, 'Không tìm thấy người dùng hoặc tài khoản đã bị vô hiệu hóa'));
         }
 
@@ -120,8 +221,7 @@ export const refreshToken = handleAsync(async (req, res, next) => {
             { expiresIn: '1d' }
         );
 
-        res.status(200).json({
-            success: true,
+        return res.success({
             accessToken: newAccessToken
         });
     } catch (error) {
@@ -137,8 +237,7 @@ export const getCurrentUser = handleAsync(async (req, res, next) => {
         return next(createError(404, 'Không tìm thấy người dùng'));
     }
 
-    res.status(200).json({
-        success: true,
+    return res.success({
         user: {
             id: user._id,
             username: user.username,
@@ -165,27 +264,17 @@ export const changePassword = handleAsync(async (req, res, next) => {
         return next(createError(401, 'Mật khẩu hiện tại không đúng'));
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-    user.passwordHash = hashedPassword;
+    user.passwordHash = await hashPassword(newPassword);
     await user.save();
 
-    res.status(200).json({
-        success: true,
-        message: 'Đổi mật khẩu thành công'
-    });
+    return res.success({}, 'Đổi mật khẩu thành công');
 });
 
 export const forgotPassword = handleAsync(async (req, res, next) => {
     const { email } = req.body;
-
     const user = await User.findOne({ email });
     if (!user) {
-        return res.status(200).json({
-            success: true,
-            message: 'Nếu email tồn tại, bạn sẽ nhận được link đặt lại mật khẩu'
-        });
+        return res.success({}, 'Nếu email tồn tại, bạn sẽ nhận được link đặt lại mật khẩu');
     }
 
     const resetToken = jwt.sign(
@@ -210,15 +299,12 @@ export const forgotPassword = handleAsync(async (req, res, next) => {
 
         Trân trọng,
         Đội ngũ hỗ trợ
-        `;
+        `; console.log('Reset password URL:', resetUrl);
 
-        console.log('Reset password URL:', resetUrl);
-
-        res.status(200).json({
-            success: true,
-            message: 'Link đặt lại mật khẩu đã được gửi đến email của bạn',
-            ...(process.env.NODE_ENV === 'development' && { resetToken })
-        });
+        return res.success(
+            process.env.NODE_ENV === 'development' ? { resetToken } : {},
+            'Link đặt lại mật khẩu đã được gửi đến email của bạn'
+        );
     } catch (error) {
         console.error('Error sending reset password email:', error);
 
@@ -238,19 +324,214 @@ export const resetPassword = handleAsync(async (req, res, next) => {
             return next(createError(404, 'Token không hợp lệ hoặc đã hết hạn'));
         }
 
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-        user.passwordHash = hashedPassword;
+        user.passwordHash = await hashPassword(newPassword);
         await user.save();
 
-        res.status(200).json({
-            success: true,
-            message: 'Đặt lại mật khẩu thành công'
-        });
+        return res.success({}, 'Đặt lại mật khẩu thành công');
     } catch (error) {
         return next(createError(401, 'Token không hợp lệ hoặc đã hết hạn'));
     }
+});
+
+export const getAdminUserById = handleAsync(async (req, res, next) => {
+    const userId = req.params.id;
+
+    const user = await User.findById(userId).select('-passwordHash');
+    if (!user) {
+        return next(createError(404, 'Không tìm thấy người dùng'));
+    }
+
+    if (user.role !== 'admin' && user.role !== 'staff') {
+        return next(createError(400, 'API này chỉ dùng để lấy thông tin Admin hoặc Staff'));
+    }
+
+    const firstAdmin = await User.findOne({ role: 'admin' }).sort({ _id: 1 }).select('_id');
+    const userObj = user.toObject();
+
+    if (firstAdmin && user._id.toString() === firstAdmin._id.toString()) {
+        userObj.isSuperAdmin = true;
+    }
+
+    return res.success({
+        data: userObj
+    });
+});
+
+export const updateAdminUser = handleAsync(async (req, res, next) => {
+    const userId = req.params.id;
+    const { username, email, fullName, phoneNumber } = req.body;
+    const currentUserId = req.user.id;
+
+    const userToUpdate = await User.findById(userId);
+    if (!userToUpdate) {
+        return next(createError(404, 'Không tìm thấy người dùng'));
+    }
+
+    if (userToUpdate.role !== 'admin' && userToUpdate.role !== 'staff') {
+        return next(createError(400, 'API này chỉ dùng để cập nhật thông tin Admin hoặc Staff'));
+    }
+
+    // Kiểm tra quyền sửa đổi
+    if (userToUpdate.role === 'admin' && currentUserId !== userId) {
+        const firstAdmin = await User.findOne({ role: 'admin' }).sort({ createdAt: 1 });
+        if (!firstAdmin || firstAdmin._id.toString() !== currentUserId) {
+            return next(createError(403, 'Chỉ Super Admin mới có quyền cập nhật thông tin Admin khác'));
+        }
+    }
+
+    // Kiểm tra email và username đã tồn tại (nếu có thay đổi)
+    if (email && email !== userToUpdate.email) {
+        const existingEmail = await User.findOne({ email, _id: { $ne: userId } });
+        if (existingEmail) {
+            return next(createError(400, 'Email đã được sử dụng'));
+        }
+    }
+
+    if (username && username !== userToUpdate.username) {
+        const existingUsername = await User.findOne({ username, _id: { $ne: userId } });
+        if (existingUsername) {
+            return next(createError(400, 'Tên đăng nhập đã được sử dụng'));
+        }
+    }
+
+    // Cập nhật thông tin
+    const updateData = {};
+    if (username) updateData.username = username;
+    if (email) updateData.email = email;
+    if (fullName) updateData.fullName = fullName;
+    if (phoneNumber) updateData.phoneNumber = phoneNumber;
+
+    const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        updateData,
+        { new: true, runValidators: true }
+    ).select('-passwordHash');
+
+    return res.success({
+        data: updatedUser
+    }, 'Cập nhật thông tin thành công');
+});
+
+export const updateAdminActiveStatus = handleAsync(async (req, res, next) => {
+    const userId = req.params.id;
+    const { isActive } = req.body;
+    const currentUserId = req.user.id;
+
+    if (userId === currentUserId) {
+        return next(createError(400, 'Bạn không thể thay đổi trạng thái của chính mình'));
+    }
+
+    const userToUpdate = await User.findById(userId);
+    if (!userToUpdate) {
+        return next(createError(404, 'Không tìm thấy người dùng'));
+    }
+
+    if (userToUpdate.role !== 'admin' && userToUpdate.role !== 'staff') {
+        return next(createError(400, 'API này chỉ dùng để cập nhật trạng thái Admin hoặc Staff'));
+    }
+
+    // Kiểm tra quyền
+    if (userToUpdate.role === 'admin') {
+        const firstAdmin = await User.findOne({ role: 'admin' }).sort({ createdAt: 1 });
+        if (!firstAdmin || firstAdmin._id.toString() !== currentUserId) {
+            return next(createError(403, 'Chỉ Super Admin mới có quyền thay đổi trạng thái Admin khác'));
+        }
+
+        // Không cho phép vô hiệu hóa Super Admin
+        if (firstAdmin._id.toString() === userId && !isActive) {
+            return next(createError(400, 'Không thể vô hiệu hóa Super Admin'));
+        }
+    }
+
+    userToUpdate.isActive = isActive;
+    await userToUpdate.save();
+
+    return res.success(
+        {},
+        `${isActive ? 'Kích hoạt' : 'Vô hiệu hóa'} tài khoản ${userToUpdate.role === 'admin' ? 'Admin' : 'Staff'} thành công`
+    );
+});
+
+export const updateAdminRole = handleAsync(async (req, res, next) => {
+    const userId = req.params.id;
+    const { role } = req.body;
+    const currentUserId = req.user.id;
+
+    if (userId === currentUserId) {
+        return next(createError(400, 'Bạn không thể thay đổi vai trò của chính mình'));
+    }
+
+    const userToUpdate = await User.findById(userId);
+    if (!userToUpdate) {
+        return next(createError(404, 'Không tìm thấy người dùng'));
+    }
+
+    if (userToUpdate.role !== 'admin' && userToUpdate.role !== 'staff') {
+        return next(createError(400, 'API này chỉ dùng để thay đổi vai trò Admin hoặc Staff'));
+    }
+
+    // Chỉ Super Admin mới có quyền thay đổi vai trò
+    const firstAdmin = await User.findOne({ role: 'admin' }).sort({ createdAt: 1 });
+    if (!firstAdmin || firstAdmin._id.toString() !== currentUserId) {
+        return next(createError(403, 'Chỉ Super Admin mới có quyền thay đổi vai trò'));
+    }
+
+    // Không cho phép thay đổi vai trò của Super Admin
+    if (firstAdmin._id.toString() === userId) {
+        return next(createError(400, 'Không thể thay đổi vai trò của Super Admin'));
+    }
+
+    // Kiểm tra nếu hạ cấp admin xuống staff mà chỉ còn 1 admin
+    if (userToUpdate.role === 'admin' && role === 'staff') {
+        const adminCount = await User.countDocuments({ role: 'admin' });
+        if (adminCount <= 2) { // 1 Super Admin + 1 Admin hiện tại
+            return next(createError(400, 'Không thể hạ cấp Admin này vì phải có ít nhất 1 Admin trong hệ thống'));
+        }
+    }
+
+    userToUpdate.role = role;
+    await userToUpdate.save();
+
+    return res.success(
+        {},
+        `Thay đổi vai trò thành ${role === 'admin' ? 'Admin' : 'Staff'} thành công`
+    );
+});
+
+export const adminResetPassword = handleAsync(async (req, res, next) => {
+    const userId = req.params.id;
+    const { newPassword } = req.body;
+    const currentUserId = req.user.id;
+
+    if (userId === currentUserId) {
+        return next(createError(400, 'Sử dụng API đổi mật khẩu thông thường để thay đổi mật khẩu của chính bạn'));
+    }
+
+    const userToUpdate = await User.findById(userId);
+    if (!userToUpdate) {
+        return next(createError(404, 'Không tìm thấy người dùng'));
+    }
+
+    if (userToUpdate.role !== 'admin' && userToUpdate.role !== 'staff') {
+        return next(createError(400, 'API này chỉ dùng để reset mật khẩu Admin hoặc Staff'));
+    }
+
+    // Kiểm tra quyền
+    if (userToUpdate.role === 'admin') {
+        const firstAdmin = await User.findOne({ role: 'admin' }).sort({ createdAt: 1 });
+        if (!firstAdmin || firstAdmin._id.toString() !== currentUserId) {
+            return next(createError(403, 'Chỉ Super Admin mới có quyền reset mật khẩu Admin khác'));
+        }
+    }
+
+    const hashedPassword = await hashPassword(newPassword);
+    userToUpdate.passwordHash = hashedPassword;
+    await userToUpdate.save();
+
+    return res.success(
+        {},
+        `Reset mật khẩu cho ${userToUpdate.role === 'admin' ? 'Admin' : 'Staff'} thành công`
+    );
 });
 
 export default {
@@ -260,5 +541,13 @@ export default {
     getCurrentUser,
     changePassword,
     forgotPassword,
-    resetPassword
+    resetPassword,
+    getAdminUsers,
+    createAdminUser,
+    deleteAdminUser,
+    getAdminUserById,
+    updateAdminUser,
+    updateAdminActiveStatus,
+    updateAdminRole,
+    adminResetPassword
 };
