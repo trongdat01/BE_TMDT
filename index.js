@@ -7,7 +7,7 @@ import cors from "cors";
 import { PORT } from "./src/configs/enviroments.js";
 import jsonValid from "./src/middlewares/jsonInvalid.js";
 import setupSwagger from "./src/configs/swaggerConfig.js";
-import { successResponse, errorResponse } from "./src/middlewares/response.middleware.js";
+import { successResponse } from "./src/middlewares/response.middleware.js";
 
 const app = express();
 app.use(express.json());
@@ -28,8 +28,7 @@ app.use(successResponse); // Đặt sau routes để bắt req.data từ control
 
 app.use(jsonValid);
 app.use(notFoundHandler);
-app.use(errorMessageHandler); // Sử dụng middleware chuẩn hóa lỗi
-app.use(errorResponse); // Chuẩn hóa response lỗi (nếu cần)
+app.use(errorMessageHandler); // Middleware xử lý lỗi toàn diện
 
 const server = app.listen(PORT, () => {
 	console.log(`Server is running on: http://localhost:${PORT}/api`);

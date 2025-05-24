@@ -4,18 +4,12 @@ import { verifyToken, verifyAdmin } from '../middlewares/jwt.middleware.js';
 import handleAsync from '../utils/handleAsync.js';
 import { validateSchema } from '../middlewares/validBodyRequest.js';
 import { createAddressSchema, updateAddressSchema } from '../schemas/addressSchema.js';
-import { createAdminUserSchema } from '../schemas/adminUserSchema.js';
 
 const router = express.Router();
 
 router.post('/register', handleAsync(userController.register));
 router.post('/login', handleAsync(userController.login));
 router.get('/me', verifyToken, handleAsync(userController.getCurrentUser));
-
-
-router.get('/admin', verifyToken, verifyAdmin, handleAsync(userController.getAdminUsers));
-router.post('/admin', verifyToken, verifyAdmin, validateSchema(createAdminUserSchema), handleAsync(userController.createAdminUser));
-router.delete('/admin/:id', verifyToken, verifyAdmin, handleAsync(userController.deleteAdminUser));
 
 router.get('/:id', verifyToken, verifyAdmin, handleAsync(userController.getUserById));
 router.put('/:id', verifyToken, handleAsync(userController.updateUser));

@@ -18,12 +18,5 @@ export const successResponse = (req, res, next) => {
     next();
 };
 
-export const errorResponse = (err, req, res, next) => {
-    if (res.headersSent) return next(err);
-    const status = err.statusCode || 500;
-    const message = err.message || 'Lỗi máy chủ';
-    res.status(status).json({
-        success: false,
-        message
-    });
-};
+// errorResponse được loại bỏ vì trùng lặp với errorMessageHandler
+// Sử dụng errorMessageHandler trong errorMessage.middleware.js thay thế
