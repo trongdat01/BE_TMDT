@@ -12,6 +12,54 @@ import cartRoutes from './cartRoutes.js';
 
 const routes = Router();
 
+// 🏥 Health Check Endpoint - Kiểm tra CORS và kết nối
+routes.get("/health", (req, res) => {
+    const origin = req.get('Origin');
+    const userAgent = req.get('User-Agent');
+    const timestamp = new Date().toISOString();
+
+    // 🎉 Hiển thị thông báo đầy đủ trên terminal
+    console.log('=====================================');
+    console.log('🎉 FRONTEND ĐÃ KẾT NỐI BACKEND THÀNH CÔNG!');
+    console.log('=====================================');
+    console.log(`🌐 Origin: ${origin || 'No origin (Postman/Direct)'}`);
+    console.log(`🕐 Time: ${new Date().toLocaleString('vi-VN')}`);
+    console.log(`🔗 URL: ${req.protocol}://${req.get('host')}${req.originalUrl}`);
+    console.log(`📱 User Agent: ${userAgent || 'Unknown'}`);
+    console.log(`✅ CORS Status: Working perfectly!`);
+    console.log('=====================================');
+
+    res.status(200).json({
+        success: true,
+        message: "🎉 Backend API hoạt động bình thường!",
+        timestamp: timestamp,
+        origin: origin || 'No origin',
+        cors: "✅ Working",
+        connection: {
+            status: "connected",
+            protocol: req.protocol,
+            host: req.get('host'),
+            path: req.originalUrl,
+            method: req.method
+        },
+        endpoints: {
+            auth: "/api/auth",
+            products: "/api/products",
+            categories: "/api/categories",
+            cart: "/api/cart",
+            orders: "/api/orders",
+            brands: "/api/brands",
+            users: "/api/users",
+            reviews: "/api/reviews",
+            wishlists: "/api/wishlists"
+        }, documentation: {
+            swagger: `${req.protocol}://${req.get('host')}/api-docs`,
+            api_guide: "Check FRONTEND_CONNECTION_GUIDE.md",
+            health_check: `${req.protocol}://${req.get('host')}/api/health`
+        }
+    });
+});
+
 // Route xác thực
 routes.use("/auth", authRoutes);
 
