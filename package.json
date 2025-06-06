@@ -6,7 +6,8 @@
 	"type": "module",
 	"scripts": {
 		"dev": "nodemon --experimental-specifier-resolution=node index.js",
-		"swagger": "node src/configs/swagger.js"
+		"swagger": "node src/configs/swagger.js",
+		"health": "curl -X GET http://localhost:8888/api/health"
 	},
 	"keywords": [
 		"nodejs",
