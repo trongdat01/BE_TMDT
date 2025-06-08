@@ -41,9 +41,9 @@ routes.get("/health", (req, res) => {
             host: req.get('host'),
             path: req.originalUrl,
             method: req.method
-        },
-        endpoints: {
+        }, endpoints: {
             auth: "/api/auth",
+            admin: "/api/admin",
             products: "/api/products",
             categories: "/api/categories",
             cart: "/api/cart",
@@ -60,8 +60,29 @@ routes.get("/health", (req, res) => {
     });
 });
 
-// Route xác thực
+// Routes xác thực người dùng (khách hàng)
 routes.use("/auth", authRoutes);
+
+// Route xác thực riêng cho quản trị viên (admin, staff)
+routes.use("/admin/auth", (req, res, next) => {
+    // Route admin sẽ được xử lý trong middleware này
+    // Đảm bảo không dùng chung với routes user
+    req.isAdminRoute = true; // Thay thế header bằng thuộc tính trên request
+    next();
+}, authRoutes);
+
+// Route riêng cho các API admin đã xác thực
+import { verifyAdminToken, verifyStaffWithToken } from '../middlewares/jwt.middleware.js';
+
+// Middleware kiểm tra token admin cho tất cả các route /admin
+routes.use("/admin", (req, res, next) => {
+    // Bỏ qua middleware cho route /admin/auth
+    if (req.originalUrl.startsWith('/api/admin/auth')) {
+        return next();
+    }
+    // Áp dụng verifyAdminToken cho mọi route /admin khác
+    verifyAdminToken(req, res, next);
+});
 
 // Route quản lý danh mục
 routes.use("/categories", categoryRoutes);
