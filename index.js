@@ -63,8 +63,9 @@ app.use(
 
 setupSwagger(app);
 
+// Đặt middleware response trước routes để controllers có thể sử dụng res.success
+app.use(successResponse);
 app.use("/api", routes);
-app.use(successResponse); // Đặt sau routes để bắt req.data từ controller
 
 app.use(jsonValid);
 app.use(notFoundHandler);

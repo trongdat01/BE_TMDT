@@ -5,6 +5,181 @@ import { JWT_SECRET, JWT_REFRESH_SECRET } from '../configs/enviroments.js';
 import handleAsync from '../utils/handleAsync.js';
 import createError from '../utils/createError.js';
 import { sendEmail } from '../utils/sendMail.js';
+import { isSuperAdmin } from '../utils/checkSuperAdmin.js';
+
+// ===== ADMIN AUTHENTICATION FUNCTIONS =====
+
+// Admin login - Chỉ dành cho admin và staff
+export const adminLogin = handleAsync(async (req, res, next) => {
+    const { identifier, password } = req.body;
+
+    // Tìm user theo email hoặc username
+    const user = await User.findByCredentials(identifier);
+
+    if (!user) {
+        return next(createError(401, 'Tên đăng nhập hoặc mật khẩu không đúng'));
+    }
+
+    // Kiểm tra role - chỉ admin và staff được phép
+    if (user.role !== 'admin' && user.role !== 'staff') {
+        return next(createError(403, 'Bạn không có quyền truy cập vào trang quản trị'));
+    }
+
+    // Kiểm tra tài khoản có bị vô hiệu hóa không
+    if (!user.isActive) {
+        return next(createError(401, 'Tài khoản đã bị vô hiệu hóa'));
+    }
+
+    // Kiểm tra mật khẩu
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isPasswordValid) {
+        return next(createError(401, 'Tên đăng nhập hoặc mật khẩu không đúng'));
+    }
+
+    // Tạo token với type: 'admin'
+    const accessToken = generateToken({
+        payload: {
+            id: user._id,
+            role: user.role,
+            type: 'admin'  // Đánh dấu đây là token admin
+        },
+        secret: JWT_SECRET,
+        options: { expiresIn: '8h' }  // Admin token có thời gian ngắn hơn
+    });
+
+    const refreshToken = generateToken({
+        payload: {
+            id: user._id,
+            type: 'admin'
+        },
+        secret: JWT_REFRESH_SECRET,
+        options: { expiresIn: '3d' }  // Admin refresh token ngắn hơn
+    });
+
+    // Kiểm tra Super Admin
+    const firstAdmin = await User.findOne({ role: 'admin' }).sort({ _id: 1 }).select('_id');
+    const isSuperAdmin = firstAdmin && user._id.toString() === firstAdmin._id.toString();
+
+    return res.success({
+        user: {
+            id: user._id,
+            username: user.username,
+            email: user.email,
+            fullName: user.fullName,
+            role: user.role,
+            isSuperAdmin
+        },
+        accessToken,
+        refreshToken
+    }, `Đăng nhập ${user.role === 'admin' ? 'Admin' : 'Staff'} thành công`);
+});
+
+// Admin refresh token
+export const adminRefreshToken = handleAsync(async (req, res, next) => {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+        return next(createError(400, 'Refresh token không được cung cấp'));
+    }
+
+    try {
+        const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+
+        // Kiểm tra type trong token
+        if (!decoded.type || decoded.type !== 'admin') {
+            return next(createError(401, 'Token không hợp lệ cho trang quản trị'));
+        }
+
+        const user = await User.findById(decoded.id);
+
+        if (!user || !user.isActive) {
+            return next(createError(401, 'Không tìm thấy người dùng hoặc tài khoản đã bị vô hiệu hóa'));
+        }
+
+        // Kiểm tra role
+        if (user.role !== 'admin' && user.role !== 'staff') {
+            return next(createError(403, 'Bạn không có quyền truy cập vào trang quản trị'));
+        }
+
+        // Tạo token mới
+        const accessToken = generateToken({
+            payload: {
+                id: user._id,
+                role: user.role,
+                type: 'admin'
+            },
+            secret: JWT_SECRET,
+            options: { expiresIn: '8h' }
+        });
+
+        return res.success({
+            accessToken
+        });
+    } catch (error) {
+        return next(createError(401, 'Refresh token không hợp lệ hoặc đã hết hạn'));
+    }
+});
+
+// Lấy thông tin admin hiện tại
+export const adminGetMe = handleAsync(async (req, res, next) => {
+    const userId = req.user.id;
+
+    // Kiểm tra token đã được xác nhận bởi verifyAdminToken middleware
+    // Không cần kiểm tra type ở đây nữa
+
+    const user = await User.findById(userId);
+    if (!user) {
+        return next(createError(404, 'Không tìm thấy người dùng'));
+    }
+
+    // Kiểm tra role
+    if (user.role !== 'admin' && user.role !== 'staff') {
+        return next(createError(403, 'Bạn không có quyền truy cập thông tin này'));
+    }
+
+    // Kiểm tra Super Admin
+    const firstAdmin = await User.findOne({ role: 'admin' }).sort({ _id: 1 }).select('_id');
+    const isSuperAdmin = firstAdmin && user._id.toString() === firstAdmin._id.toString();
+
+    return res.success({
+        user: {
+            id: user._id,
+            username: user.username,
+            email: user.email,
+            fullName: user.fullName,
+            phoneNumber: user.phoneNumber,
+            role: user.role,
+            isSuperAdmin
+        }
+    });
+});
+
+// Function kiểm tra người dùng hiện tại có phải Super Admin không
+export const checkIsSuperAdmin = handleAsync(async (req, res, next) => {
+    const userId = req.user.id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+        return next(createError(404, 'Không tìm thấy người dùng'));
+    }
+
+    // Kiểm tra role
+    if (user.role !== 'admin') {
+        return next(createError(403, 'Chỉ Admin mới có quyền truy cập'));
+    }
+
+    // Sử dụng hàm tiện ích để kiểm tra Super Admin
+    const superAdminCheck = await isSuperAdmin(userId);
+    if (!superAdminCheck) {
+        return next(createError(403, 'Chỉ Super Admin mới có quyền truy cập'));
+    }
+
+    return res.success({
+        isSuperAdmin: true
+    }, 'Xác thực Super Admin thành công');
+});
+
+// ===== USER AUTHENTICATION FUNCTIONS =====
 
 function generateToken({ payload, secret, options }) {
     return jwt.sign(payload, secret, options);
@@ -55,16 +230,35 @@ export const getAdminUsers = handleAsync(async (req, res, next) => {
 
 export const createAdminUser = handleAsync(async (req, res, next) => {
     const { username, email, password, fullName, phoneNumber, role } = req.body;
+    const currentUserId = req.user.id;
 
+    // Kiểm tra role hợp lệ
     if (role !== 'admin' && role !== 'staff') {
         return next(createError(400, 'Vai trò không hợp lệ, chỉ được phép tạo tài khoản Admin hoặc Staff'));
     }
 
+    // Kiểm tra xem người dùng hiện tại có phải là Super Admin không
+    const firstAdmin = await User.findOne({ role: 'admin' }).sort({ _id: 1 }).select('_id');
+    const isSuperAdmin = firstAdmin && firstAdmin._id.toString() === currentUserId;
+
+    // Kiểm tra quyền hạn dựa trên role của người dùng mới
+    if (role === 'admin') {
+        // Chỉ SuperAdmin mới được tạo tài khoản Admin
+        if (!isSuperAdmin) {
+            return next(createError(403, 'Chỉ Super Admin mới có quyền tạo tài khoản Admin mới'));
+        }
+    } else if (role === 'staff') {
+        // Cả Admin thường và Super Admin đều có thể tạo Staff
+        // Không cần kiểm tra thêm, vì đã xác thực quyền admin qua middleware verifyAdminWithToken
+    }
+
+    // Kiểm tra trùng email hoặc username
     const checkResult = await checkExistingUser(email, username);
     if (checkResult.error) {
         return next(checkResult.error);
     }
 
+    // Hash mật khẩu và tạo người dùng mới
     const hashedPassword = await hashPassword(password);
     const newUser = new User({
         username,
@@ -78,6 +272,7 @@ export const createAdminUser = handleAsync(async (req, res, next) => {
 
     await newUser.save();
 
+    // Trả về thông tin người dùng vừa tạo (không bao gồm mật khẩu)
     return res.success({
         user: {
             id: newUser._id,
@@ -106,16 +301,25 @@ export const deleteAdminUser = handleAsync(async (req, res, next) => {
         return next(createError(400, 'API này chỉ dùng để xóa tài khoản Admin hoặc Staff'));
     }
 
+    // Kiểm tra user hiện tại có phải là Super Admin không
+    const firstAdmin = await User.findOne({ role: 'admin' }).sort({ _id: 1 }).select('_id');
+    const isSuperAdmin = firstAdmin && firstAdmin._id.toString() === adminId;
+
+    // Kiểm tra quyền hạn theo role
     if (userToDelete.role === 'admin') {
+        // Kiểm tra số lượng admin (không thể xóa admin duy nhất)
         const adminCount = await User.countDocuments({ role: 'admin' });
         if (adminCount <= 1) {
             return next(createError(400, 'Không thể xóa Admin duy nhất trong hệ thống'));
         }
 
-        const firstAdmin = await User.findOne({ role: 'admin' }).sort({ createdAt: 1 });
-        if (firstAdmin && firstAdmin._id.toString() !== adminId) {
-            return next(createError(403, 'Chỉ Super Admin mới có quyền xóa tài khoản Admin khác'));
+        // Chỉ Super Admin mới có quyền xóa tài khoản Admin khác
+        if (!isSuperAdmin) {
+            return next(createError(403, 'Chỉ Super Admin mới có quyền xóa tài khoản Admin'));
         }
+    } else if (userToDelete.role === 'staff') {
+        // Admin thường và Super Admin đều có quyền xóa Staff
+        // Không cần kiểm tra thêm, vì đã xác thực quyền admin qua middleware verifyAdminWithToken
     }
 
     await User.findByIdAndDelete(userId);
@@ -163,6 +367,9 @@ export const register = handleAsync(async (req, res, next) => {
 export const login = handleAsync(async (req, res, next) => {
     const { identifier, password } = req.body;
 
+    // Kiểm tra xem yêu cầu có đến từ route admin không
+    const isAdminRoute = req.isAdminRoute === true;
+
     const user = await User.findByCredentials(identifier);
 
     if (!user) {
@@ -173,36 +380,71 @@ export const login = handleAsync(async (req, res, next) => {
         return next(createError(401, 'Tài khoản đã bị vô hiệu hóa'));
     }
 
+    // Phân biệt đăng nhập admin và user
+    if (isAdminRoute) {
+        // Chỉ cho phép admin và staff đăng nhập qua route admin
+        if (user.role !== 'admin' && user.role !== 'staff') {
+            return next(createError(403, 'Bạn không có quyền truy cập vào trang quản trị'));
+        }
+    } else {
+        // Chỉ cho phép customer đăng nhập qua route user
+        if (user.role !== 'customer') {
+            return next(createError(403, 'Vui lòng sử dụng trang đăng nhập dành cho quản trị viên'));
+        }
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
         return next(createError(401, 'Tên đăng nhập hoặc mật khẩu không đúng'));
-    } const accessToken = generateToken({
-        payload: { id: user._id, role: user.role },
+    }
+
+    // Tạo token khác nhau cho admin và user
+    const accessToken = generateToken({
+        payload: {
+            id: user._id,
+            role: user.role,
+            ...(isAdminRoute ? { type: 'admin' } : {})  // Thêm type='admin' cho admin routes
+        },
         secret: JWT_SECRET,
-        options: { expiresIn: '1d' }
+        options: { expiresIn: isAdminRoute ? '8h' : '1d' }  // Token ngắn hơn cho admin
     });
 
     const refreshToken = generateToken({
-        payload: { id: user._id },
+        payload: {
+            id: user._id,
+            ...(isAdminRoute ? { type: 'admin' } : {})
+        },
         secret: JWT_REFRESH_SECRET,
-        options: { expiresIn: '7d' }
+        options: { expiresIn: isAdminRoute ? '3d' : '7d' }  // Refresh token ngắn hơn cho admin
     });
 
+    // Tạo response tùy theo loại người dùng
+    const userResponse = {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role
+    };
+
+    // Nếu là admin route, kiểm tra có phải Super Admin không
+    if (isAdminRoute && user.role === 'admin') {
+        const firstAdmin = await User.findOne({ role: 'admin' }).sort({ _id: 1 }).select('_id');
+        if (firstAdmin && user._id.toString() === firstAdmin._id.toString()) {
+            userResponse.isSuperAdmin = true;
+        }
+    }
+
     return res.success({
-        user: {
-            id: user._id,
-            username: user.username,
-            email: user.email,
-            fullName: user.fullName,
-            role: user.role
-        },
+        user: userResponse,
         accessToken,
         refreshToken
-    }, 'Đăng nhập thành công');
+    }, `Đăng nhập ${isAdminRoute ? (user.role === 'admin' ? 'Admin' : 'Staff') : 'Khách hàng'} thành công`);
 });
 
 export const refreshToken = handleAsync(async (req, res, next) => {
     const { refreshToken } = req.body;
+    const isAdminRoute = req.isAdminRoute === true;
 
     if (!refreshToken) {
         return next(createError(400, 'Refresh token không được cung cấp'));
@@ -211,14 +453,36 @@ export const refreshToken = handleAsync(async (req, res, next) => {
     try {
         const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
 
-        const user = await User.findById(decoded.id); if (!user || !user.isActive) {
+        // Kiểm tra phù hợp giữa loại token và route
+        if (isAdminRoute && !decoded.type) {
+            return next(createError(403, 'Token không hợp lệ cho trang quản trị'));
+        }
+
+        if (!isAdminRoute && decoded.type === 'admin') {
+            return next(createError(403, 'Token không hợp lệ cho trang người dùng'));
+        }
+
+        const user = await User.findById(decoded.id);
+        if (!user || !user.isActive) {
             return next(createError(401, 'Không tìm thấy người dùng hoặc tài khoản đã bị vô hiệu hóa'));
         }
 
+        // Phân biệt đăng nhập admin và user
+        if (isAdminRoute) {
+            // Chỉ cho phép admin và staff truy cập route admin
+            if (user.role !== 'admin' && user.role !== 'staff') {
+                return next(createError(403, 'Bạn không có quyền truy cập vào trang quản trị'));
+            }
+        }
+
         const newAccessToken = jwt.sign(
-            { id: user._id, role: user.role },
+            {
+                id: user._id,
+                role: user.role,
+                ...(isAdminRoute ? { type: 'admin' } : {})
+            },
             JWT_SECRET,
-            { expiresIn: '1d' }
+            { expiresIn: isAdminRoute ? '8h' : '1d' }
         );
 
         return res.success({
@@ -371,12 +635,19 @@ export const updateAdminUser = handleAsync(async (req, res, next) => {
         return next(createError(400, 'API này chỉ dùng để cập nhật thông tin Admin hoặc Staff'));
     }
 
-    // Kiểm tra quyền sửa đổi
+    // Kiểm tra xem người dùng hiện tại có phải là Super Admin không
+    const firstAdmin = await User.findOne({ role: 'admin' }).sort({ _id: 1 }).select('_id');
+    const isSuperAdmin = firstAdmin && firstAdmin._id.toString() === currentUserId;
+
+    // Kiểm tra quyền sửa đổi dựa trên role của user cần cập nhật
     if (userToUpdate.role === 'admin' && currentUserId !== userId) {
-        const firstAdmin = await User.findOne({ role: 'admin' }).sort({ createdAt: 1 });
-        if (!firstAdmin || firstAdmin._id.toString() !== currentUserId) {
+        // Chỉ Super Admin mới có quyền cập nhật thông tin Admin khác
+        if (!isSuperAdmin) {
             return next(createError(403, 'Chỉ Super Admin mới có quyền cập nhật thông tin Admin khác'));
         }
+    } else if (userToUpdate.role === 'staff') {
+        // Cả Admin thường và Super Admin đều có thể cập nhật Staff
+        // Không cần kiểm tra thêm, vì đã xác thực quyền admin qua middleware verifyAdminWithToken
     }
 
     // Kiểm tra email và username đã tồn tại (nếu có thay đổi)
@@ -430,10 +701,14 @@ export const updateAdminActiveStatus = handleAsync(async (req, res, next) => {
         return next(createError(400, 'API này chỉ dùng để cập nhật trạng thái Admin hoặc Staff'));
     }
 
-    // Kiểm tra quyền
+    // Kiểm tra xem người dùng hiện tại có phải là Super Admin không
+    const firstAdmin = await User.findOne({ role: 'admin' }).sort({ _id: 1 }).select('_id');
+    const isSuperAdmin = firstAdmin && firstAdmin._id.toString() === currentUserId;
+
+    // Kiểm tra quyền dựa trên role của user cần cập nhật
     if (userToUpdate.role === 'admin') {
-        const firstAdmin = await User.findOne({ role: 'admin' }).sort({ createdAt: 1 });
-        if (!firstAdmin || firstAdmin._id.toString() !== currentUserId) {
+        // Chỉ Super Admin mới có quyền thay đổi trạng thái của Admin khác
+        if (!isSuperAdmin) {
             return next(createError(403, 'Chỉ Super Admin mới có quyền thay đổi trạng thái Admin khác'));
         }
 
@@ -441,6 +716,9 @@ export const updateAdminActiveStatus = handleAsync(async (req, res, next) => {
         if (firstAdmin._id.toString() === userId && !isActive) {
             return next(createError(400, 'Không thể vô hiệu hóa Super Admin'));
         }
+    } else if (userToUpdate.role === 'staff') {
+        // Cả Admin thường và Super Admin đều có thể cập nhật trạng thái Staff
+        // Không cần kiểm tra thêm, vì đã xác thực quyền admin qua middleware verifyAdminWithToken
     }
 
     userToUpdate.isActive = isActive;
@@ -516,12 +794,19 @@ export const adminResetPassword = handleAsync(async (req, res, next) => {
         return next(createError(400, 'API này chỉ dùng để reset mật khẩu Admin hoặc Staff'));
     }
 
-    // Kiểm tra quyền
+    // Kiểm tra xem người dùng hiện tại có phải là Super Admin không
+    const firstAdmin = await User.findOne({ role: 'admin' }).sort({ _id: 1 }).select('_id');
+    const isSuperAdmin = firstAdmin && firstAdmin._id.toString() === currentUserId;
+
+    // Kiểm tra quyền dựa trên role của user cần cập nhật mật khẩu
     if (userToUpdate.role === 'admin') {
-        const firstAdmin = await User.findOne({ role: 'admin' }).sort({ createdAt: 1 });
-        if (!firstAdmin || firstAdmin._id.toString() !== currentUserId) {
+        // Chỉ Super Admin mới có quyền reset mật khẩu Admin khác
+        if (!isSuperAdmin) {
             return next(createError(403, 'Chỉ Super Admin mới có quyền reset mật khẩu Admin khác'));
         }
+    } else if (userToUpdate.role === 'staff') {
+        // Cả Admin thường và Super Admin đều có thể reset mật khẩu Staff
+        // Không cần kiểm tra thêm, vì đã xác thực quyền admin qua middleware verifyAdminWithToken
     }
 
     const hashedPassword = await hashPassword(newPassword);
@@ -549,5 +834,8 @@ export default {
     updateAdminUser,
     updateAdminActiveStatus,
     updateAdminRole,
-    adminResetPassword
+    adminResetPassword,
+    adminLogin,
+    adminRefreshToken,
+    adminGetMe
 };

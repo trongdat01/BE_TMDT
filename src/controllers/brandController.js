@@ -44,12 +44,8 @@ export const getAllBrands = handleAsync(async (req, res) => {
         const domestic = await Brand.find({ ...filter, isDomestic: true }).sort({ name: 1 });
         const international = await Brand.find({ ...filter, isDomestic: false }).sort({ name: 1 });
 
-        return res.status(200).json({
-            success: true,
-            data: { domestic, international }
-        });
-    }
-    // Lấy các thương hiệu phổ biến nhất
+        return res.success({ domestic, international });
+    }    // Lấy các thương hiệu phổ biến nhất
     else if (req.query.popular === 'true') {
         const limit = parseInt(req.query.limit) || 10;        // Mặc định chỉ lấy các thương hiệu đang hoạt động
         if (isActive === undefined) {
@@ -80,8 +76,7 @@ export const getAllBrands = handleAsync(async (req, res) => {
             }
         }
 
-        return res.status(200).json({
-            success: true,
+        return res.success({
             count: sortedBrands.length,
             data: sortedBrands
         });
@@ -91,8 +86,7 @@ export const getAllBrands = handleAsync(async (req, res) => {
         brands = await Brand.find(filter).sort({ name: 1 });
     }
 
-    res.status(200).json({
-        success: true,
+    return res.success({
         count: brands.length,
         data: brands
     });
@@ -112,10 +106,7 @@ export const getBrandById = handleAsync(async (req, res, next) => {
         return next(createError(404, 'Không tìm thấy thương hiệu'));
     }
 
-    res.status(200).json({
-        success: true,
-        data: brand
-    });
+    return res.success({ brand });
 });
 
 // Lấy thông tin một thương hiệu theo slug
@@ -128,10 +119,7 @@ export const getBrandBySlug = handleAsync(async (req, res, next) => {
         return next(createError(404, 'Không tìm thấy thương hiệu'));
     }
 
-    res.status(200).json({
-        success: true,
-        data: brand
-    });
+    return res.success({ brand });
 });
 
 // Tạo thương hiệu mới
@@ -155,11 +143,11 @@ export const createBrand = handleAsync(async (req, res, next) => {
     // Lưu vào database
     const savedBrand = await brand.save();
 
-    res.status(201).json({
-        success: true,
-        message: 'Tạo thương hiệu thành công',
-        data: savedBrand
-    });
+    return res.success(
+        { brand: savedBrand },
+        'Tạo thương hiệu thành công',
+        201
+    );
 });
 
 // Cập nhật thương hiệu
@@ -194,11 +182,10 @@ export const updateBrand = handleAsync(async (req, res, next) => {
     // Lưu thay đổi
     const updatedBrand = await brand.save();
 
-    res.status(200).json({
-        success: true,
-        message: 'Cập nhật thương hiệu thành công',
-        data: updatedBrand
-    });
+    return res.success(
+        { brand: updatedBrand },
+        'Cập nhật thương hiệu thành công'
+    );
 });
 
 // Xóa thương hiệu
@@ -223,10 +210,10 @@ export const deleteBrand = handleAsync(async (req, res, next) => {
     // Xóa thương hiệu
     await Brand.findByIdAndDelete(id);
 
-    res.status(200).json({
-        success: true,
-        message: 'Xóa thương hiệu thành công'
-    });
+    return res.success(
+        {},
+        'Xóa thương hiệu thành công'
+    );
 });
 
 // Vô hiệu hóa thương hiệu (soft delete)
@@ -247,11 +234,10 @@ export const softDeleteBrand = handleAsync(async (req, res, next) => {
         return next(createError(404, 'Không tìm thấy thương hiệu'));
     }
 
-    res.status(200).json({
-        success: true,
-        message: 'Vô hiệu hóa thương hiệu thành công',
-        data: brand
-    });
+    return res.success(
+        { brand },
+        'Vô hiệu hóa thương hiệu thành công'
+    );
 });
 
 // Khôi phục thương hiệu đã vô hiệu hóa
@@ -272,11 +258,10 @@ export const restoreBrand = handleAsync(async (req, res, next) => {
         return next(createError(404, 'Không tìm thấy thương hiệu'));
     }
 
-    res.status(200).json({
-        success: true,
-        message: 'Khôi phục thương hiệu thành công',
-        data: brand
-    });
+    return res.success(
+        { brand },
+        'Khôi phục thương hiệu thành công'
+    );
 });
 
 export default {

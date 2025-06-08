@@ -1,6 +1,12 @@
 import express from 'express';
-import authController from '../controllers/authController.js';
-import { verifyToken, verifyAdmin } from '../middlewares/jwt.middleware.js';
+import * as authController from '../controllers/authController.js';
+import {
+    verifyToken,
+    verifyAdmin,
+    verifyAdminToken,
+    verifyAdminWithToken,
+    verifyStaffWithToken
+} from '../middlewares/jwt.middleware.js';
 import validBodyRequest, { validateSchema } from '../middlewares/validBodyRequest.js';
 import {
     registerSchema,
@@ -31,6 +37,9 @@ router.post('/refresh-token', authController.refreshToken);
 // Lấy thông tin người dùng hiện tại
 router.get('/me', verifyToken, authController.getCurrentUser);
 
+// Lấy thông tin admin hiện tại (chỉ dành cho admin routes)
+router.get('/me/admin', verifyAdminToken, authController.adminGetMe);
+
 // Đổi mật khẩu
 router.post(
     '/change-password',
@@ -45,16 +54,19 @@ router.post('/forgot-password', validBodyRequest(forgotPasswordSchema), authCont
 // Đặt lại mật khẩu
 router.post('/reset-password', validBodyRequest(resetPasswordSchema), authController.resetPassword);
 
-// Admin Routes
-router.get('/admin', verifyToken, verifyAdmin, authController.getAdminUsers);
-router.post('/admin', verifyToken, verifyAdmin, validateSchema(createAdminUserSchema), authController.createAdminUser);
-router.delete('/admin/:id', verifyToken, verifyAdmin, authController.deleteAdminUser);
+// Admin Routes - Sử dụng middleware verifyAdminWithToken để đảm bảo token có type=admin
+router.get('/admin', verifyAdminWithToken, authController.getAdminUsers);
+router.post('/admin', verifyAdminWithToken, validateSchema(createAdminUserSchema), authController.createAdminUser);
+router.delete('/admin/:id', verifyAdminWithToken, authController.deleteAdminUser);
 
 // Quản lý tài khoản Admin
-router.get('/admin/:id', verifyToken, verifyAdmin, authController.getAdminUserById); // Lấy thông tin admin theo ID
-router.put('/admin/:id', verifyToken, verifyAdmin, validateSchema(updateAdminUserSchema), authController.updateAdminUser); // Cập nhật thông tin admin
-router.patch('/admin/:id/status', verifyToken, verifyAdmin, validateSchema(updateActiveStatusSchema), authController.updateAdminActiveStatus); // Cập nhật trạng thái hoạt động
-router.patch('/admin/:id/role', verifyToken, verifyAdmin, validateSchema(updateRoleSchema), authController.updateAdminRole); // Cập nhật vai trò
-router.post('/admin/:id/reset-password', verifyToken, verifyAdmin, validateSchema(adminResetPasswordSchema), authController.adminResetPassword); // Đặt lại mật khẩu admin
+router.get('/admin/:id', verifyAdminWithToken, authController.getAdminUserById); // Lấy thông tin admin theo ID
+router.put('/admin/:id', verifyAdminWithToken, validateSchema(updateAdminUserSchema), authController.updateAdminUser); // Cập nhật thông tin admin
+router.patch('/admin/:id/status', verifyAdminWithToken, validateSchema(updateActiveStatusSchema), authController.updateAdminActiveStatus); // Cập nhật trạng thái hoạt động
+router.patch('/admin/:id/role', verifyAdminWithToken, validateSchema(updateRoleSchema), authController.updateAdminRole); // Cập nhật vai trò
+router.post('/admin/:id/reset-password', verifyAdminWithToken, validateSchema(adminResetPasswordSchema), authController.adminResetPassword); // Đặt lại mật khẩu admin
+
+// Các route cho Super Admin - chỉ admin đầu tiên trong hệ thống có quyền truy cập
+router.get('/superadmin/check', verifyAdminWithToken, authController.checkIsSuperAdmin);
 
 export default router;
