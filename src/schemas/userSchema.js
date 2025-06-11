@@ -160,3 +160,17 @@ export const addressSchema = Joi.object({
         }),
     isDefault: Joi.boolean().optional()
 });
+
+// Schema cho thao tác xóa nhiều người dùng
+export const bulkDeleteUsersSchema = Joi.object({
+    userIds: Joi.array()
+        .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
+        .min(1)
+        .required()
+        .messages({
+            'array.base': 'Danh sách người dùng phải là một mảng',
+            'array.min': 'Phải chọn ít nhất một người dùng để xóa',
+            'any.required': 'Danh sách người dùng là bắt buộc',
+            'string.pattern.base': 'ID người dùng không hợp lệ'
+        })
+});

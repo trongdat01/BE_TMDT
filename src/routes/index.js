@@ -9,6 +9,7 @@ import productVariantRoutes from './productVariantRoutes.js';
 import reviewRoutes from './reviewRoutes.js';
 import wishlistRoutes from './wishlistRoutes.js';
 import cartRoutes from './cartRoutes.js';
+import adminUserRoutes from './adminUserRoutes.js';
 
 const routes = Router();
 
@@ -83,6 +84,9 @@ routes.use("/admin", (req, res, next) => {
     // Áp dụng verifyAdminToken cho mọi route /admin khác
     verifyAdminToken(req, res, next);
 });
+
+// Route quản lý người dùng dành cho admin/staff
+routes.use("/admin/users", adminUserRoutes);
 
 // Route quản lý danh mục
 routes.use("/categories", categoryRoutes);
