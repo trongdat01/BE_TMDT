@@ -88,4 +88,23 @@ export const verifyStaffWithToken = (req, res, next) => {
 	});
 };
 
-export default { verifyToken, verifyAdminToken, verifyAdmin, verifyAdminWithToken, verifyStaff, verifyStaffWithToken };
+// Middleware kiểm tra quyền admin CHỈ cho admin (không cho phép staff)
+export const verifyStrictAdminWithToken = (req, res, next) => {
+	verifyAdminToken(req, res, () => {
+		if (req.user.role === "admin") {
+			next();
+		} else {
+			return next(createError(403, "Chức năng này chỉ dành cho Admin, Staff không có quyền truy cập"));
+		}
+	});
+};
+
+export default {
+	verifyToken,
+	verifyAdminToken,
+	verifyAdmin,
+	verifyAdminWithToken,
+	verifyStaff,
+	verifyStaffWithToken,
+	verifyStrictAdminWithToken
+};
